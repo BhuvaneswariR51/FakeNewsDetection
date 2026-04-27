@@ -125,6 +125,37 @@ def process_language(text, target_lang='en'):
         pass
     return text, detected_lang
 
+def check_fact_google(query):
+    """Checks Google Fact Check Tools API for existing fact checks"""
+    # REPLACE THIS WITH YOUR GOOGLE API KEY
+    GOOGLE_API_KEY = "AIzaSyBRqWcKIMQIaO_pOmkkLD09jaPDEANBTUE"
+    
+    if GOOGLE_API_KEY == "YOUR_GOOGLE_API_KEY_HERE" or not GOOGLE_API_KEY:
+        return None, 0
+        
+    try:
+        url = f"https://factchecktools.googleapis.com/v1alpha1/claims:search?query={query}&key={GOOGLE_API_KEY}"
+        res = requests.get(url, timeout=5)
+        data = res.json()
+        
+        if 'claims' in data and len(data['claims']) > 0:
+            # Get the top claim
+            claim = data['claims'][0]
+            rating = claim['claimReview'][0]['textualRating'].lower()
+            
+            # Map rating to Real/Fake
+            fake_keywords = ['false', 'fake', 'incorrect', 'misleading', 'pants on fire', 'untrue']
+            real_keywords = ['true', 'correct', 'accurate', 'authentic']
+            
+            if any(word in rating for word in fake_keywords):
+                return "Fake", 0.95
+            elif any(word in rating for word in real_keywords):
+                return "Real", 0.95
+    except Exception as e:
+        print(f"Google Fact Check Error: {e}")
+        
+    return None, 0
+
 @app.route('/signup', methods=['POST'])
 def signup():
     data = request.json
@@ -162,7 +193,13 @@ def predict():
     # Internal Lang Processing
     translated_text, detected_lang = process_language(text)
     
-    result, confidence = model_handler.predict(translated_text)
+    # Try Google Fact Check First (Procedure 2)
+    result, confidence = check_fact_google(translated_text)
+    
+    # Fallback to local AI Model if Google has no record
+    if result is None:
+        result, confidence = model_handler.predict(translated_text)
+        
     if result is None:
         return jsonify({'error': 'Problem loading weights. Try training again.'}), 503
     
@@ -241,7 +278,14 @@ def analyze():
 
     # Prediction logic
     translated_text, detected_lang = process_language(extracted_text)
-    result, confidence = model_handler.predict(translated_text)
+    
+    # Try Google Fact Check First (Procedure 2)
+    result, confidence = check_fact_google(translated_text)
+    
+    # Fallback to local AI Model if Google has no record
+    if result is None:
+        result, confidence = model_handler.predict(translated_text)
+        
     if result is None:
         return jsonify({'error': 'Prediction failure. Check if models are trained.'}), 503
     
@@ -313,8 +357,8 @@ def get_stats():
 
 @app.route('/trending-news', methods=['GET'])
 def get_trending_news():
-    api_key = "0994f794358a43f89069d25a6663f73f"
-    url = f"https://newsapi.org/v2/top-headlines?country=in&apiKey={api_key}"
+    api_key = "96ae3aaa81564e4aa868d7e947fa2c62"
+    url = f"https://newsapi.org/v2/top-headlines?country=us&apiKey={api_key}"
     try:
         res = requests.get(url, timeout=5)
         return jsonify(res.json())
