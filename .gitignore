@@ -1,0 +1,29 @@
+# Python backend
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.env
+
+# Backend temp/database generated files
+backend/temp/
+backend/dataset/
+*.csv
+*.sqlite3
+*.db
+
+# Node.js frontend
+node_modules/
+dist/
+build/
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# OS generated files
+.DS_Store
+Thumbs.db
